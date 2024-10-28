@@ -1,6 +1,8 @@
 import asyncio
 import json
+import aiosqlite
 
+from datetime import datetime
 from aiohttp import ClientSession, web
 from aiologger import Logger
 from aiologger.formatters.base import Formatter
@@ -9,6 +11,20 @@ logger = Logger.with_default_handlers(
     level="DEBUG",
     formatter=Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 )
+db_path = "/home/freedom/Документы/education/asyncio/weather.db"
+db = None
+
+
+async def create_table():
+    await db.execute("CREATE TABLE IF NOT EXISTS requests "
+                     "(date text, city text, weather text)")
+    await db.commit()
+
+
+async def save_to_db(city, weather):
+    await db.execute("INSERT INTO requests VALUES (?, ?, ?)",
+                     (datetime.now(), city, weather))
+    await db.commit()
 
 
 async def get_weather(city):
@@ -54,21 +70,30 @@ async def handle(request):
     weather = await get_translation(await get_weather(city), "en", "ru")
     result = {"city": city, "weather": weather}
 
+    await save_to_db(city, weather)
+
     return web.Response(body=json.dumps(result, ensure_ascii=False),
                         content_type="text/json")
 
 
 async def main():
-    app = web.Application()
-    app.add_routes([web.get("/weather", handle)])
+    try:
+        global db
+        db = await aiosqlite.connect(db_path)
+        await create_table()
 
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "localhost", 8000)
-    await site.start()
+        app = web.Application()
+        app.add_routes([web.get("/weather", handle)])
 
-    while True:
-        await asyncio.sleep(3600)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, "localhost", 8000)
+        await site.start()
+
+        while True:
+            await asyncio.sleep(3600)
+    finally:
+        await db.close()
 
 
 if __name__ == "__main__":
