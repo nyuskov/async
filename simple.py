@@ -34,12 +34,12 @@ async def echo(connection: socket,
                loop: AbstractEventLoop) -> None:
     try:
         while data := await loop.sock_recv(connection, 1024):
-            logger.info(f"Получены данные: {data}")
+            await logger.info(f"Получены данные: {data}")
             if data == b"\xff\xf4\xff\xfd\x06":
                 shutdown()
             await loop.sock_sendall(connection, data)
     except Exception as ex:
-        logger.exception(ex)
+        await logger.exception(ex)
     finally:
         connection.close()
 
@@ -48,7 +48,7 @@ async def connection_listener(server_socket: socket, loop: AbstractEventLoop):
     while True:
         connection, address = await loop.sock_accept(server_socket)
         connection.setblocking(False)
-        logger.info(f"Получено сообщение от {address}")
+        await logger.info(f"Получено сообщение от {address}")
         echo_task = asyncio.create_task(echo(connection, loop))
         echo_tasks.append(echo_task)
 

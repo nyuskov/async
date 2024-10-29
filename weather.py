@@ -13,6 +13,7 @@ logger = Logger.with_default_handlers(
 )
 db_path = "/home/freedom/Документы/education/asyncio/weather.db"
 db = None
+routes = web.RouteTableDef()
 
 
 async def create_table():
@@ -62,6 +63,7 @@ async def get_translation(text, source, target):
             return translate
 
 
+@routes.get("/weather")
 async def handle(request):
     city = request.rel_url.query["city"]
 
@@ -83,8 +85,7 @@ async def main():
         await create_table()
 
         app = web.Application()
-        app.add_routes([web.get("/weather", handle)])
-
+        app.add_routes(routes)
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, "localhost", 8000)
